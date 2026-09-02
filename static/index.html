@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>천재교육 CHUNJAE AI 스튜디오</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="icon" href="https://www.chunjae.co.kr/webdata/_cj/www/meta/chunjae_logo.png" type="image/png">
+
+  <!-- 배경 제거(누끼따기) 기능용 AI 모듈 (클라이언트 사이드 처리, 서버/갤러리 미개입) -->
+  <script type="module">
+    import * as imglyRemoveBackground from 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.8/+esm';
+    window.removeBackground = imglyRemoveBackground.removeBackground || imglyRemoveBackground.default || imglyRemoveBackground;
+  </script>
+</head>
+<body>
+
+  <!-- ============================================================
+       1. 상단 GNB & 히어로 비주얼 배너
+       ============================================================ -->
+  <header class="hero-header-wrap">
+    <!-- GNB 바 -->
+    <div class="cj-gnb">
+      <div class="gnb-container">
+        <a href="#" class="cj-logo-text">
+          CHUNJAE
+          <span>AI Studio</span>
+        </a>
+
+        <!-- 모드 전환 탭 (T2I / Inpainting) -->
+        <nav class="gnb-nav">
+          <button id="tabT2I" class="nav-tab-btn active">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+            텍스트에서 이미지 (T2I)
+          </button>
+          <button id="tabInpaint" class="nav-tab-btn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+              <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+            </svg>
+            이미지 인페인팅 (Inpaint)
+          </button>
+          <button id="tabBgRemove" class="nav-tab-btn nav-tab-btn-util" title="이미지 배경을 자동으로 제거합니다">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <circle cx="6" cy="6" r="3"></circle>
+              <circle cx="6" cy="18" r="3"></circle>
+              <line x1="20" y1="4" x2="8.12" y2="15.88"></line>
+              <line x1="14.47" y1="14.48" x2="20" y2="20"></line>
+              <line x1="8.12" y1="8.12" x2="12" y2="12"></line>
+            </svg>
+            배경 제거 (누끼따기)
+          </button>
+          <button id="tabUpscale" class="nav-tab-btn nav-tab-btn-util" title="AI로 이미지를 2배 또는 4배 고해상도로 업스케일합니다">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <polyline points="9 21 3 21 3 15"></polyline>
+              <line x1="21" y1="3" x2="14" y2="10"></line>
+              <line x1="3" y1="21" x2="10" y2="14"></line>
+            </svg>
+            업스케일링 (AI 화질 향상)
+          </button>
+        </nav>
+
+        <!-- 백엔드 서버 상태 -->
+        <div id="serverStatusPill" class="gnb-status">
+          <span class="status-dot"></span>
+          <span id="statusText">Wan2GP 연결 확인 중</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 히어로 타이틀 영역 -->
+    <div class="hero-content">
+      <h1 class="hero-title">이미지 생성 스튜디오</h1>
+      <p class="hero-subtitle">천재교육 AI 이미지 생성기</p>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       2. 메인 콘텐츠 2컬럼 레이아웃
+       ============================================================ -->
+  <main class="main-layout">
+    
+    <!-- 좌측: 위에서부터 차례대로 배치된 메인 작업 영역 -->
+    <section class="work-card">
+      <div class="cj-section-header">
+        <h2 class="cj-section-title">
+          이미지 생성 및 편집
+        </h2>
+        <p class="cj-section-desc">원하는 장면을 입력하거나 이미지를 업로드하여 특정 영역을 자연스럽게 수정하세요.</p>
+      </div>
+
+      <!-- (1) 인페인팅 캔버스 드로잉 UI (인페인팅 탭 선택 시에만 표시) -->
+      <div class="canvas-wrapper" id="canvasSection" style="display: none;">
+        <div class="form-group-label">
+          <span id="canvasTitleText">텍스트에서 이미지 (레퍼런스 이미지)</span>
+          <span id="canvasBadge" class="badge-tag optional">선택 사항 (레퍼런스)</span>
+        </div>
+
+        <!-- 캔버스 툴바 (T2I 모드 시 드로잉 도구 비활성화) -->
+        <div class="canvas-toolbar">
+          <div class="toolbar-left">
+            <button id="btnToolBrush" class="btn-tool active" title="마스크 브러시">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+                <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+              </svg>
+              브러시
+            </button>
+            <button id="btnToolEraser" class="btn-tool" title="마스크 지우개">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 20 4 20"></polyline>
+                <path d="M18 14L8 4 3 9l10 10h5z"></path>
+              </svg>
+              지우개
+            </button>
+            <button id="btnToolUndo" class="btn-tool" title="되돌리기">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="1 4 1 10 7 10"></polyline>
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+              </svg>
+              되돌리기
+            </button>
+            <button id="btnToolClear" class="btn-tool" title="마스크 전체 지우기">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+              초기화
+            </button>
+          </div>
+
+          <div class="toolbar-right">
+            <!-- 브러시 크기 슬라이더 -->
+            <div class="brush-slider-wrap">
+              <span>브러시:</span>
+              <input type="range" id="brushSize" min="5" max="100" value="30">
+              <span id="brushSizeVal">30px</span>
+            </div>
+
+            <!-- 이미지 불러오기 및 삭제 버튼 -->
+            <button id="btnUploadImage" class="btn-tool" style="color: var(--cj-primary); border-color: var(--cj-primary);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              이미지 업로드
+            </button>
+            <button id="btnRemoveImage" class="btn-tool" style="display: none; color: #e03131; border-color: #ffc9c9;" title="업로드된 이미지 삭제">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+              삭제
+            </button>
+            <input type="file" id="fileInput" accept="image/*" style="display: none;">
+          </div>
+        </div>
+
+        <!-- 캔버스 뷰 박스 -->
+        <div class="canvas-view-box" id="canvasContainer">
+          <canvas id="imageCanvas"></canvas>
+          <canvas id="maskCanvas"></canvas>
+          
+          <div class="empty-guide" id="uploadPlaceholder">
+            <div class="empty-guide-icon">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+            </div>
+            <p id="placeholderText">수정할 이미지를 드래그하여 놓거나 클릭하여 선택하세요</p>
+            <span>클립보드 붙여넣기(Ctrl+V) 지원 / 해상도 720×720 고정</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- (2) 포지티브 프롬프트 입력용 텍스트박스 -->
+      <div class="prompt-wrapper">
+        <div class="form-group-label">
+          <span>포지티브 프롬프트 (Positive Prompt)</span>
+          <span class="badge-tag required">필수</span>
+        </div>
+        <textarea id="positivePrompt" class="cj-textarea prompt-box" placeholder="생성하고 싶은 이미지의 상세 묘사를 한국어 또는 영어로 입력하세요. (예: 햇살이 비치는 아늑한 교실에서 수업을 듣는 학생들, 따뜻한 색감의 고화질 일러스트)"></textarea>
+      </div>
+
+      <!-- (3) 네거티브 프롬프트 입력용 텍스트박스 -->
+      <div class="prompt-wrapper">
+        <div class="form-group-label">
+          <span>네거티브 프롬프트 (Negative Prompt)</span>
+          <span class="badge-tag optional">선택</span>
+        </div>
+        <textarea id="negativePrompt" class="cj-textarea neg-box" placeholder="제외하고 싶은 요소를 입력하세요. (예: low quality, blurry, distorted)"></textarea>
+      </div>
+
+      <!-- 스펙 안내 바 (/html/body/main/section/div[5]) -->
+      <div class="spec-info-bar">
+        <div>적용 모델: <strong id="currentModelLabel">Flux 2 Klein 4B</strong></div>
+        <div>해상도: <strong id="currentResolutionLabel">720 × 720 px</strong></div>
+        <div>스텝: <strong id="currentStepsLabel">4 Steps</strong></div>
+      </div>
+
+      <!-- (4) 생성 버튼 및 실시간 진행률(Progress Bar) 영역 -->
+      <div class="generate-area">
+        <button id="btnGenerate" class="btn-generate-main">
+          <div class="spinner" id="btnGenSpinner"></div>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <span id="btnGenText">새 이미지 생성하기</span>
+        </button>
+
+        <!-- 실시간 프로그레스 바 컨테이너 (생성 중일 때 표시) -->
+        <div class="progress-box" id="progressBox" style="display: none;">
+          <div class="progress-info-row">
+            <span class="progress-status-text" id="progressStatusText">대기열 등록 및 준비 중...</span>
+            <span class="progress-time" id="progressTime">0.0s</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 우측: 생성한 이미지를 탐색할 수 있는 UI -->
+    <aside class="gallery-card">
+      <div class="gallery-top-bar">
+        <h2 class="gallery-heading">생성 결과 갤러리</h2>
+        <button id="btnRefreshGallery" class="btn-refresh" title="갤러리 새로고침">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+          새로고침
+        </button>
+      </div>
+
+      <!-- 갤러리 그리드 목록 -->
+      <div class="gallery-grid" id="galleryGrid">
+        <!-- JS로 동적 렌더링 -->
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- ============================================================
+       3. 상세 확대 모달 & 인페인팅 연동
+       ============================================================ -->
+  <div class="modal-overlay" id="imageModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title" id="modalFilename">이미지 상세 보기</div>
+        <button class="modal-close" id="modalClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <img id="modalImage" class="modal-img" src="" alt="확대 이미지">
+      </div>
+      <!-- 생성 이미지 평가(피드백) 영역 -->
+      <div class="modal-eval-section" id="modalEvalSection">
+        <div class="eval-question-wrap">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cj-primary)" stroke-width="2">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+          </svg>
+          <span class="eval-question">생성된 이미지가 마음에 드시나요?</span>
+        </div>
+        <div class="eval-btn-group">
+          <button type="button" id="btnEvalLike" class="btn-eval btn-eval-like" title="마음에 들어요">
+            <span class="eval-emoji">👍</span>
+            <span>마음에 들어요</span>
+          </button>
+          <button type="button" id="btnEvalDislike" class="btn-eval btn-eval-dislike" title="별로예요">
+            <span class="eval-emoji">👎</span>
+            <span>별로예요</span>
+          </button>
+        </div>
+        <div class="eval-status-badge" id="evalStatusBadge" style="display: none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="btnModalDownload" class="btn-modal">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          다운로드
+        </button>
+        <button id="btnSendToInpaint" class="btn-modal primary-action">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+            <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+          </svg>
+          인페인팅으로 보내기
+        </button>
+        <button id="btnSendToBgRemove" class="btn-modal primary-action">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="6" cy="6" r="3"></circle>
+            <circle cx="6" cy="18" r="3"></circle>
+            <line x1="20" y1="4" x2="8.12" y2="15.88"></line>
+            <line x1="14.47" y1="14.48" x2="20" y2="20"></line>
+            <line x1="8.12" y1="8.12" x2="12" y2="12"></line>
+          </svg>
+          배경 제거로 보내기
+        </button>
+        <button id="btnSendToUpscale" class="btn-modal primary-action">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <polyline points="9 21 3 21 3 15"></polyline>
+            <line x1="21" y1="3" x2="14" y2="10"></line>
+            <line x1="3" y1="21" x2="10" y2="14"></line>
+          </svg>
+          업스케일링으로 보내기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       3-1. 배경 제거(누끼따기) 모달
+       - 모든 처리는 브라우저(클라이언트) 내에서만 수행되며,
+         서버 갤러리/로그에는 저장되거나 기록되지 않습니다.
+       ============================================================ -->
+  <div class="modal-overlay" id="bgRemoveModal">
+    <div class="modal-card bg-remove-card">
+      <div class="modal-header">
+        <div class="modal-title">배경 제거 (누끼따기)</div>
+        <button class="modal-close" id="bgRemoveModalClose">&times;</button>
+      </div>
+      <div class="modal-body bg-remove-body">
+        <p class="bg-remove-notice">
+          브라우저에서 직접 처리되며, 결과는 서버에 저장되거나 갤러리/로그에 남지 않습니다.
+        </p>
+
+        <div class="bg-drop-zone" id="bgDropZone">
+          <div class="empty-guide-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+          </div>
+          <p>이미지를 클릭하거나 이곳으로 드래그하여 업로드하세요</p>
+          <input type="file" id="bgFileInput" accept="image/*" style="display:none">
+        </div>
+
+        <div class="bg-loading" id="bgLoading" style="display:none;">
+          <div class="spinner" style="display:inline-block; border-top-color: var(--cj-primary); border-color: rgba(24,100,171,0.2);"></div>
+          <span id="bgStatusText">AI가 배경을 제거하고 있습니다... (최초 실행 시 AI 모델 다운로드로 시간이 소요될 수 있습니다)</span>
+        </div>
+
+        <div class="bg-preview-container" id="bgPreviewContainer" style="display:none;">
+          <div class="img-box">
+            <h3>원본 이미지</h3>
+            <img id="bgOriginalImg" alt="원본 이미지">
+          </div>
+          <div class="img-box">
+            <h3>누끼 처리 결과</h3>
+            <img id="bgResultImg" class="bg-transparent-preview" alt="배경 제거 결과">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <a id="bgDownloadBtn" download="nobg.png" style="display:none; text-decoration:none;">
+          <button type="button" class="btn-modal primary-action">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            PNG 다운로드
+          </button>
+        </a>
+        <button id="btnBgRemoveClose2" class="btn-modal">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       3-2. 업스케일링 모달
+       - SPAN/ESRGAN 기반 AI 모델로 2배 또는 4배 업스케일
+       - 모든 처리는 브라우저(클라이언트) 내에서만 수행됩니다.
+       ============================================================ -->
+  <div class="modal-overlay" id="upscaleModal">
+    <div class="modal-card bg-remove-card">
+      <div class="modal-header">
+        <div class="modal-title">업스케일링 (AI 화질 향상)</div>
+        <button class="modal-close" id="upscaleModalClose">&times;</button>
+      </div>
+      <div class="modal-body bg-remove-body">
+        <p class="bg-remove-notice">
+          브라우저(WebGL 가속)에서 직접 처리되며, 결과는 서버에 저장되거나 갤러리/로그에 남지 않습니다.<br>
+          경량 AI 신경망(Real-ESRGAN Compact 1.2M)으로 디테일을 복원하며, 저해상도는 단일 패스, 고해상도는 타일링으로 처리됩니다.
+        </p>
+
+        <!-- 배율 선택 -->
+        <div class="upscale-scale-selector" id="upscaleScaleSelector">
+          <span class="upscale-scale-label">업스케일 배율 선택</span>
+          <div class="upscale-scale-btns">
+            <button class="upscale-scale-btn active" data-scale="2" id="btnScale2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <polyline points="9 21 3 21 3 15"></polyline>
+                <line x1="21" y1="3" x2="14" y2="10"></line>
+                <line x1="3" y1="21" x2="10" y2="14"></line>
+              </svg>
+              2× 업스케일
+            </button>
+            <button class="upscale-scale-btn" data-scale="4" id="btnScale4">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <polyline points="9 21 3 21 3 15"></polyline>
+                <line x1="21" y1="3" x2="14" y2="10"></line>
+                <line x1="3" y1="21" x2="10" y2="14"></line>
+              </svg>
+              4× 업스케일
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-drop-zone" id="upscaleDropZone">
+          <div class="empty-guide-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <polyline points="9 21 3 21 3 15"></polyline>
+              <line x1="21" y1="3" x2="14" y2="10"></line>
+              <line x1="3" y1="21" x2="10" y2="14"></line>
+            </svg>
+          </div>
+          <p>이미지를 클릭하거나 이곳으로 드래그하여 업로드하세요</p>
+          <input type="file" id="upscaleFileInput" accept="image/*" style="display:none">
+        </div>
+
+        <div class="bg-loading" id="upscaleLoading" style="display:none;">
+          <div class="spinner" style="display:inline-block; border-top-color: var(--cj-primary); border-color: rgba(24,100,171,0.2);"></div>
+          <span id="upscaleStatusText">업스케일 처리 중...</span>
+        </div>
+
+        <!-- 진행률 바 -->
+        <div id="upscaleProgressBox" style="display:none; margin-top:4px;">
+          <div class="progress-track" style="height:6px; border-radius:3px; background:#e9ecef;">
+            <div id="upscaleProgressFill" class="progress-fill" style="width:0%; height:100%; border-radius:3px; background: linear-gradient(90deg, var(--cj-primary), var(--cj-primary-light)); transition: width 0.3s ease;"></div>
+          </div>
+        </div>
+
+        <div class="bg-preview-container" id="upscalePreviewContainer" style="display:none;">
+          <div class="img-box">
+            <h3 id="upscaleOrigLabel">원본 이미지</h3>
+            <img id="upscaleOriginalImg" alt="원본 이미지">
+          </div>
+          <div class="img-box" id="upscaleResultBox">
+            <h3 id="upscaleResultLabel">업스케일 결과</h3>
+            <img id="upscaleResultImg" alt="업스케일 결과" style="display:none;">
+            <div id="upscaleResultPlaceholder" style="display:flex; align-items:center; justify-content:center; min-height:220px; color:#868e96; font-size:13.5px; text-align:center; border:1.5px dashed #dee2e6; border-radius:6px; background:#ffffff; padding:20px; line-height:1.6;">
+              <span>배율(2× / 4×)을 선택한 뒤<br>아래 <strong style="color:var(--cj-primary);">[업스케일링 시작]</strong> 버튼을 누르세요</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="btnUpscaleReset" class="btn-modal" style="display:none;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+          다른 이미지 선택
+        </button>
+        <button type="button" id="btnRunUpscale" class="btn-modal primary-action" style="display:none;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <span id="btnRunUpscaleText">2× 업스케일링 시작</span>
+        </button>
+        <a id="upscaleDownloadBtn" download="upscaled.png" style="display:none; text-decoration:none;">
+          <button type="button" class="btn-modal primary-action">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            PNG 다운로드
+          </button>
+        </a>
+        <button id="btnUpscaleClose2" class="btn-modal">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       4. 하단 푸터
+       ============================================================ -->
+  <footer class="cj-footer">
+    <div class="footer-container">
+      <div class="footer-left">
+        <span class="footer-brand">CHUNJAE</span>
+        <div class="footer-links">
+          <a href="#">이용약관</a>
+          <a href="#">개인정보처리방침</a>
+          <a href="#">이메일 무단 수집거부</a>
+        </div>
+      </div>
+      <div class="footer-right">
+        <span>© CHUNJAE Corp. All Rights Reserved.</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- 토스트 알림 컨테이너 -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- 자바스크립트 로드 -->
+  <script src="/static/js/canvas.js"></script>
+  <script src="/static/js/tf.min.js"></script>
+  <script src="/static/js/upscaler.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

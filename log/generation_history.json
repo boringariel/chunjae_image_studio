@@ -1,0 +1,101 @@
+[
+  {
+    "task_id": "b160aa04",
+    "start_time": "2026-08-27 15:09:37",
+    "elapsed_time": "67.0초",
+    "positive_prompt": "햇살이 비치는 아늑한 교실에서 수업을 듣는 학생들",
+    "negative_prompt": "",
+    "input_image_path": "없음",
+    "output_image_path": "C:\\pinokio\\api\\wan.git\\app\\outputs\\2026-08-27-15h10m44s_seed402732933_햇살이 비치는 아늑한 교실에서 수업.jpg",
+    "image_name": "2026-08-27-15h10m44s_seed402732933_햇살이 비치는 아늑한 교실에서 수업.jpg",
+    "rating": "👎 (별로예요)"
+  },
+  {
+    "task_id": "fd718eba",
+    "start_time": "2026-08-27 15:12:53",
+    "elapsed_time": "33.9초",
+    "positive_prompt": "모든 학생이 칠판을 바라보며 앉는 구도로 수정",
+    "negative_prompt": "",
+    "input_image_path": "C:\\Users\\admin\\OneDrive\\바탕 화면\\업로드\\wan2gp_kor\\new_front\\inputs\\input_20260827_151253_fd718eba.png",
+    "output_image_path": "C:\\pinokio\\api\\wan.git\\app\\outputs\\2026-08-27-15h13m28s_seed304430950_모든 학생이 칠판을 바라보며 앉는 구.jpg",
+    "image_name": "2026-08-27-15h13m28s_seed304430950_모든 학생이 칠판을 바라보며 앉는 구.jpg",
+    "rating": "👎 (별로예요)"
+  },
+  {
+    "task_id": "2a697558",
+    "start_time": "2026-08-27 15:13:58",
+    "elapsed_time": "40.4초",
+    "positive_prompt": "학생은 칠판을 바라보며 앉아있는다",
+    "negative_prompt": "",
+    "input_image_path": "C:\\Users\\admin\\OneDrive\\바탕 화면\\업로드\\wan2gp_kor\\new_front\\inputs\\input_20260827_151358_2a697558.png",
+    "output_image_path": "C:\\pinokio\\api\\wan.git\\app\\outputs\\2026-08-27-15h14m39s_seed460965219_학생은 칠판을 바라보며 앉아있는다.jpg",
+    "image_name": "2026-08-27-15h14m39s_seed460965219_학생은 칠판을 바라보며 앉아있는다.jpg",
+    "rating": "미평가"
+  },
+  {
+    "task_id": "c5673c90",
+    "start_time": "2026-08-27 15:21:29",
+    "elapsed_time": "38.5초",
+    "positive_prompt": "검은머리의 소녀. 흰 셔츠와 갈색 롱스커트를 입고 있다.",
+    "negative_prompt": "",
+    "input_image_path": "C:\\Users\\admin\\OneDrive\\바탕 화면\\업로드\\wan2gp_kor\\new_front\\inputs\\input_20260827_152129_c5673c90.png",
+    "output_image_path": "C:\\pinokio\\api\\wan.git\\app\\outputs\\2026-08-27-15h22m07s_seed900161357_검은머리의 소녀. 흰 셔츠와 갈색 롱.jpg",
+    "image_name": "2026-08-27-15h22m07s_seed900161357_검은머리의 소녀. 흰 셔츠와 갈색 롱.jpg",
+    "rating": "👍 (마음에 들어요)"
+  },
+  {
+    "task_id": "7ad03d3d",
+    "start_time": "2026-08-27 15:30:44",
+    "elapsed_time": "37.0초",
+    "positive_prompt": "여성은 한 손을 들고 인사한다.",
+    "negative_prompt": "",
+    "input_image_path": "C:\\Users\\admin\\OneDrive\\바탕 화면\\업로드\\wan2gp_kor\\new_front\\inputs\\input_20260827_153044_7ad03d3d.png",
+    "output_image_path": "C:\\pinokio\\api\\wan.git\\app\\outputs\\2026-08-27-15h31m21s_seed647236036_여성은 한 손을 들고 인사한다..jpg",
+    "image_name": "2026-08-27-15h31m21s_seed647236036_여성은 한 손을 들고 인사한다..jpg",
+    "rating": "👍 (마음에 들어요)"
+  },
+  {
+    "task_id": "85c54563",
+    "start_time": "2026-08-27 15:46:21",
+    "elapsed_time": "29.4초",
+    "positive_prompt": "여성은 양 팔을 좌우로 벌린다.",
+    "negative_prompt": "",
+    "input_image_path": "C:\\Users\\admin\\OneDrive\\바탕 화면\\업로드\\wan2gp_kor\\new_front\\inputs\\input_20260827_154621_85c54563.png",
+    "output_image_path": "C:\\pinokio\\api\\wan.git\\app\\outputs\\2026-08-27-15h46m50s_seed819874880_여성은 양 팔을 좌우로 벌린다..jpg",
+    "image_name": "2026-08-27-15h46m50s_seed819874880_여성은 양 팔을 좌우로 벌린다..jpg",
+    "rating": "미평가"
+  },
+  {
+    "task_id": "4245fdbd",
+    "start_time": "2026-08-27 15:49:11",
+    "elapsed_time": "32.5초",
+    "positive_prompt": "여성은 양 팔을 좌우로 벌린다",
+    "negative_prompt": "",
+    "input_image_path": "C:\\Users\\admin\\OneDrive\\바탕 화면\\업로드\\wan2gp_kor\\new_front\\inputs\\input_20260827_154911_4245fdbd.png",
+    "output_image_path": "C:\\pinokio\\api\\wan.git\\app\\outputs\\2026-08-27-15h49m44s_seed378207599_여성은 양 팔을 좌우로 벌린다.jpg",
+    "image_name": "2026-08-27-15h49m44s_seed378207599_여성은 양 팔을 좌우로 벌린다.jpg",
+    "rating": "미평가"
+  },
+  {
+    "task_id": "ddc77e33",
+    "start_time": "2026-08-27 15:50:11",
+    "elapsed_time": "14.4초",
+    "positive_prompt": "여성은 양 팔을 좌우로 벌린다",
+    "negative_prompt": "",
+    "input_image_path": "C:\\Users\\admin\\OneDrive\\바탕 화면\\업로드\\wan2gp_kor\\new_front\\inputs\\input_20260827_155011_ddc77e33.png",
+    "output_image_path": "C:\\pinokio\\api\\wan.git\\app\\outputs\\2026-08-27-15h50m26s_seed559206667_여성은 양 팔을 좌우로 벌린다.jpg",
+    "image_name": "2026-08-27-15h50m26s_seed559206667_여성은 양 팔을 좌우로 벌린다.jpg",
+    "rating": "미평가"
+  },
+  {
+    "task_id": "cc17f96f",
+    "start_time": "2026-08-28 13:55:03",
+    "elapsed_time": "69.3초",
+    "positive_prompt": "여성은 손을 들고 인사한다",
+    "negative_prompt": "",
+    "input_image_path": "C:\\Users\\admin\\OneDrive\\바탕 화면\\업로드\\wan2gp_kor\\new_front\\inputs\\input_20260828_135503_cc17f96f.png",
+    "output_image_path": "C:\\pinokio\\api\\wan.git\\app\\outputs\\2026-08-28-13h56m14s_seed724464182_여성은 손을 들고 인사한다.jpg",
+    "image_name": "2026-08-28-13h56m14s_seed724464182_여성은 손을 들고 인사한다.jpg",
+    "rating": "미평가"
+  }
+]

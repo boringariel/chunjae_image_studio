@@ -1,0 +1,23 @@
+{
+  "wan2gp_url": "http://127.0.0.1:42003",
+  "server_port": 8080,
+  "outputs_path": "C:\\pinokio\\api\\wan.git\\app\\outputs",
+  "inputs_path": "inputs",
+  "log_path": "log",
+  "resolution": "448x448",
+  "width": 448,
+  "height": 448,
+  "num_inference_steps": 4,
+  "guidance_scale": 1.0,
+  "Enhance Prompt via LLM": "Based on both Text Prompt and Images Prompts Content",
+  "NAG_scale": 1.1,
+  "NAG_tau": 3.5,
+  "NAG_alpha": 0.5,
+  "masking_strength": 1.0,
+  "mask_expand_shrink": 0,
+  "selected_model": [
+    "Flux2",
+    "Klein 4B",
+    "Default"
+  ]
+}
