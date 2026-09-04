@@ -17,6 +17,57 @@ import tempfile
 import urllib.parse
 import io
 
+import subprocess
+
+def sync_from_remote_backend(remote_host='10.41.0.125', remote_port=222, remote_user='dopaca', remote_dir='/home/dopaca/jiwan/Wan2GP/outputs', local_dir='/home/alpaca/jiwan/chunjae_image_studio/outputs'):
+    try:
+        cmd = [
+            'rsync', '-avz', '--remove-source-files',
+            '-e', f'ssh -p {remote_port} -o StrictHostKeyChecking=no',
+            f'{remote_user}@{remote_host}:{remote_dir}/',
+            f'{local_dir}/'
+        ]
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=25)
+        if res.returncode == 0:
+            print(f'[*] [Remote Move] dopaca outputs 파일 이동 완료 (백엔드 원본 삭제됨)')
+        else:
+            print(f'[!] [Remote Move] rsync 경고: {res.stderr.strip()}')
+    except Exception as e:
+        print(f'[!] [Remote Move] 이동 실패: {e}')
+
+def fetch_remote_file(filename, remote_host='10.41.0.125', remote_port=222, remote_user='dopaca', remote_dir='/home/dopaca/jiwan/Wan2GP/outputs', local_dir='/home/alpaca/jiwan/chunjae_image_studio/outputs'):
+    try:
+        cmd = [
+            'rsync', '-avz', '--remove-source-files',
+            '-e', f'ssh -p {remote_port} -o StrictHostKeyChecking=no',
+            f'{remote_user}@{remote_host}:{remote_dir}/{filename}',
+            f'{local_dir}/{filename}'
+        ]
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        if res.returncode == 0 and os.path.exists(os.path.join(local_dir, filename)):
+            print(f'[*] [Remote Move] 단일 파일 이동 완료: {filename}')
+            return True
+        cmd_scp = [
+            'scp', '-P', str(remote_port),
+            '-o', 'StrictHostKeyChecking=no',
+            f'{remote_user}@{remote_host}:{remote_dir}/{filename}',
+            f'{local_dir}/'
+        ]
+        res_scp = subprocess.run(cmd_scp, capture_output=True, text=True, timeout=15)
+        if res_scp.returncode == 0 and os.path.exists(os.path.join(local_dir, filename)):
+            del_cmd = [
+                'ssh', '-p', str(remote_port),
+                '-o', 'StrictHostKeyChecking=no',
+                f'{remote_user}@{remote_host}',
+                f'rm -f "{remote_dir}/{filename}"'
+            ]
+            subprocess.run(del_cmd, capture_output=True, text=True, timeout=10)
+            print(f'[*] [Remote Move] 단일 파일 SCP 이동 및 백엔드 원본 삭제 완료: {filename}')
+            return True
+    except Exception as e:
+        print(f'[!] [Remote Move] 파일 이동 실패 ({filename}): {e}')
+    return False
+
 # Wan2GP 경로 설정 (wan.git 또는 wan2gp-amd.git)
 WAN_APP_DIR_CANDIDATES = [
     r"C:\pinokio\api\wan.git\app",
@@ -368,6 +419,13 @@ def main():
         print(f"[*] finalize 응답: {finalize_result}")
 
         # ── 이미지 파일 감지 (3단계) ──
+        # 원격 백엔드(dopaca) 동기화
+        if not ('127.0.0.1' in wan2gp_url or 'localhost' in wan2gp_url):
+            ext_name = extract_image_from_gradio_result(finalize_result)
+            if ext_name:
+                fetch_remote_file(ext_name, local_dir=out_dir)
+            sync_from_remote_backend(local_dir=out_dir)
+
 
         # 1차: Gradio finalize_generation 응답에서 직접 파일명 추출
         new_image_name = extract_image_from_gradio_result(finalize_result)
@@ -380,6 +438,8 @@ def main():
             valid_exts = {".png", ".jpg", ".jpeg", ".webp"}
             for i in range(38):
                 time.sleep(0.8)
+                if not ('127.0.0.1' in wan2gp_url or 'localhost' in wan2gp_url) and i % 3 == 0:
+                    sync_from_remote_backend(local_dir=out_dir)
                 if os.path.exists(out_dir):
                     current_files = set(os.listdir(out_dir))
                     diff = current_files - before_files

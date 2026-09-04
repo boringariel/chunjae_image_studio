@@ -1,7 +1,7 @@
 {
-  "wan2gp_url": "http://127.0.0.1:42003",
+  "wan2gp_url": "http://10.41.0.125:42003",
   "server_port": 8080,
-  "outputs_path": "C:\\pinokio\\api\\wan.git\\app\\outputs",
+  "outputs_path": "/home/alpaca/jiwan/chunjae_image_studio/outputs",
   "inputs_path": "inputs",
   "log_path": "log",
   "resolution": "448x448",
@@ -17,7 +17,8 @@
   "mask_expand_shrink": 0,
   "selected_model": [
     "Flux2",
-    "Klein 4B",
+    "Klein 9B",
     "Default"
-  ]
+  ],
+  "server_host": "0.0.0.0"
 }

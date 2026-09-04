@@ -728,9 +728,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnSendToUpscale          = document.getElementById('btnSendToUpscale');
 
   let selectedUpscaleScale = 2;
-  let currentUpscaleSource = null;    // File | Blob | string
-  let currentUpscaleOrigUrl = null;   // ObjectURL (원본)
-  let currentUpscaleResultUrl = null; // ObjectURL (결과)
+  let currentUpscaleSource = null;     // File | Blob | string
+  let currentUpscaleOrigUrl = null;    // ObjectURL (원본)
+  let currentUpscaleResultUrl = null;  // ObjectURL (결과)
+  let currentUpscaleResultBlob = null; // Blob (결과 Blob - 추가 업스케일링 시 새 소스로 활용)
   let isUpscaling = false;
 
   // 배율 선택 버튼 처리 (선택 시 바로 실행되지 않고 버튼 텍스트만 갱신)
@@ -741,7 +742,11 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.classList.add('active');
       selectedUpscaleScale = parseInt(btn.dataset.scale, 10);
       if (btnRunUpscaleText && !isUpscaling) {
-        btnRunUpscaleText.textContent = `${selectedUpscaleScale}× 업스케일링 시작`;
+        if (currentUpscaleResultBlob) {
+          btnRunUpscaleText.textContent = `${selectedUpscaleScale}× 추가 업스케일링`;
+        } else {
+          btnRunUpscaleText.textContent = `${selectedUpscaleScale}× 업스케일링 시작`;
+        }
       }
     });
   });
@@ -776,6 +781,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function resetUpscaleUI() {
     clearUpscaleUrls();
     currentUpscaleSource = null;
+    currentUpscaleResultBlob = null;
     isUpscaling = false;
 
     if (upscaleDropZone) upscaleDropZone.style.display = 'flex';
@@ -812,6 +818,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     currentUpscaleSource = fileOrBlob;
     currentUpscaleOrigUrl = previewUrl;
+    currentUpscaleResultBlob = null;
 
     if (upscaleDropZone) upscaleDropZone.style.display = 'none';
     if (upscalePreview) upscalePreview.style.display = 'flex';
@@ -850,6 +857,49 @@ document.addEventListener('DOMContentLoaded', () => {
   async function runUpscale() {
     if (!currentUpscaleSource || isUpscaling) return;
 
+    // 추가 업스케일링 모드: 이전 결과물이 존재할 경우 이를 새 원본으로 전환
+    if (currentUpscaleResultBlob) {
+      currentUpscaleSource = currentUpscaleResultBlob;
+
+      // 이전 원본 ObjectURL 해제
+      if (currentUpscaleOrigUrl && currentUpscaleOrigUrl.startsWith('blob:') && currentUpscaleOrigUrl !== currentUpscaleResultUrl) {
+        URL.revokeObjectURL(currentUpscaleOrigUrl);
+      }
+      currentUpscaleOrigUrl = currentUpscaleResultUrl; // 이전 결과 URL을 새 원본 URL로 승격
+
+      const prevW = upscaleResultImg ? (upscaleResultImg.naturalWidth || 0) : 0;
+      const prevH = upscaleResultImg ? (upscaleResultImg.naturalHeight || 0) : 0;
+
+      if (upscaleOrigImg && currentUpscaleOrigUrl) {
+        upscaleOrigImg.src = currentUpscaleOrigUrl;
+        if (upscaleOrigLabel) upscaleOrigLabel.textContent = `원본 이미지 (${prevW}×${prevH} px)`;
+      }
+
+      // 결과 영역 초기화
+      currentUpscaleResultUrl = null;
+      currentUpscaleResultBlob = null;
+      if (upscaleResultImg) {
+        upscaleResultImg.src = '';
+        upscaleResultImg.style.display = 'none';
+      }
+      if (upscaleResultPlaceholder) upscaleResultPlaceholder.style.display = 'flex';
+      if (upscaleResultLabel) upscaleResultLabel.textContent = '추가 업스케일 결과 대기 중';
+      if (upscaleDownloadBtn) upscaleDownloadBtn.style.display = 'none';
+    }
+
+    // 사전 크기 검증 (WebGL 한계치 초과 여부 확인)
+    if (window.UpscalerModule && typeof window.UpscalerModule.checkCanUpscale === 'function' && upscaleOrigImg) {
+      const origW = upscaleOrigImg.naturalWidth || 0;
+      const origH = upscaleOrigImg.naturalHeight || 0;
+      if (origW > 0 && origH > 0) {
+        const check = window.UpscalerModule.checkCanUpscale(origW, origH, selectedUpscaleScale);
+        if (!check.canUpscale) {
+          alert('이미지 크기를 이 이상 늘릴 수 없습니다');
+          return;
+        }
+      }
+    }
+
     isUpscaling = true;
     if (btnRunUpscale) btnRunUpscale.disabled = true;
     if (btnUpscaleReset) btnUpscaleReset.style.display = 'none';
@@ -878,6 +928,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (currentUpscaleResultUrl && currentUpscaleResultUrl.startsWith('blob:')) {
         URL.revokeObjectURL(currentUpscaleResultUrl);
       }
+      currentUpscaleResultBlob = resultBlob;
       currentUpscaleResultUrl = URL.createObjectURL(resultBlob);
 
       // 결과 화면 렌더링
@@ -907,14 +958,25 @@ document.addEventListener('DOMContentLoaded', () => {
         btnRunUpscale.style.display = 'inline-flex';
         btnRunUpscale.disabled = false;
       }
-      if (btnRunUpscaleText) btnRunUpscaleText.textContent = `${scale}× 다시 업스케일링`;
+      if (btnRunUpscaleText) btnRunUpscaleText.textContent = `${scale}× 추가 업스케일링`;
       if (btnUpscaleReset) btnUpscaleReset.style.display = 'inline-flex';
 
       showToast(`${scale}× 업스케일링이 성공적으로 완료되었습니다!`);
 
     } catch (err) {
       console.error('[Upscaler] 처리 오류:', err);
-      alert('업스케일링 처리 실패: ' + err.message);
+      const errMsg = (err && err.message) ? err.message : '';
+      if (
+        (err && err.name === 'MaxSizeExceededError') ||
+        errMsg.includes('이 이상 늘릴 수 없습니다') ||
+        errMsg.includes('WebGL maximum') ||
+        errMsg.includes('texture size') ||
+        errMsg.includes('greater than WebGL')
+      ) {
+        alert('이미지 크기를 이 이상 늘릴 수 없습니다');
+      } else {
+        alert('업스케일링 처리 실패: ' + errMsg);
+      }
       if (btnRunUpscale) {
         btnRunUpscale.style.display = 'inline-flex';
         btnRunUpscale.disabled = false;

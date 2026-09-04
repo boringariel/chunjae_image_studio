@@ -1,3 +1,6 @@
+import socket
+import sys
+sys.excepthook = sys.__excepthook__
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -42,7 +45,8 @@ except Exception:
 # 기본 설정 로드
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
 DEFAULT_CONFIG = {
-    "wan2gp_url": "http://127.0.0.1:42003",
+    "wan2gp_url": "http://10.41.0.125:42003",
+    "server_host": "0.0.0.0",
     "server_port": 8080,
     "outputs_path": os.path.join(WAN_APP_DIR, "outputs"),
     "inputs_path": "inputs",
@@ -58,6 +62,7 @@ DEFAULT_CONFIG = {
     "NAG_tau": 3.5,
     "NAG_alpha": 0.5,
     "masking_strength": 1.0,
+    "denoising_strength": 0.75,
     "mask_expand_shrink": 0,
     "selected_model": ["Flux2", "Klein 4B", "Default"]
 }
@@ -78,17 +83,12 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 
 def get_outputs_dir():
     cur_cfg = load_config()
-    candidates = [
-        cur_cfg.get("outputs_path", ""),
-        os.path.join(WAN_APP_DIR, "outputs"),
-        os.path.join(BASE_DIR, "outputs")
-    ]
-    for c in candidates:
-        if c and os.path.exists(c):
-            return os.path.abspath(c)
-    fallback = os.path.join(BASE_DIR, "outputs")
-    os.makedirs(fallback, exist_ok=True)
-    return fallback
+    out_path = cur_cfg.get("outputs_path", "").strip()
+    if not out_path:
+        out_path = os.path.join(BASE_DIR, "outputs")
+    elif not os.path.isabs(out_path):
+        out_path = os.path.join(BASE_DIR, out_path)
+    return os.path.abspath(out_path)
 
 def get_inputs_dir():
     cur_cfg = load_config()
@@ -237,26 +237,18 @@ def update_generation_feedback(image_name, rating_label):
 
 def check_or_detect_wan2gp():
     cur_cfg = load_config()
-    current_url = cur_cfg.get("wan2gp_url", "http://127.0.0.1:42003").rstrip("/")
-    candidates = [current_url, "http://127.0.0.1:42003", "http://127.0.0.1:7860", "http://127.0.0.1:7861", "http://127.0.0.1:7862"]
-    seen = set()
-    test_urls = []
-    for u in candidates:
-        if u not in seen:
-            seen.add(u)
-            test_urls.append(u)
+    target_url = cur_cfg.get("wan2gp_url", "http://10.41.0.125:42003").rstrip("/")
+    try:
+        req = urllib.request.Request(target_url, headers={"User-Agent": "Wan2GP-Front"})
+        with urllib.request.urlopen(req, timeout=1.5) as resp:
+            if resp.status in [200, 301, 302]:
+                CONFIG["wan2gp_url"] = target_url
+                return True, target_url, "정상 연결됨"
+    except Exception:
+        pass
 
-    for url in test_urls:
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": "Wan2GP-Front"})
-            with urllib.request.urlopen(req, timeout=0.8) as resp:
-                if resp.status in [200, 301, 302]:
-                    CONFIG["wan2gp_url"] = url
-                    return True, url, "정상 연결됨"
-        except Exception:
-            continue
-
-    return False, current_url, "Wan2GP 백엔드 오프라인 (대기 중)"
+    CONFIG["wan2gp_url"] = target_url
+    return False, target_url, f"Wan2GP 백엔드 오프라인 (대기 중: {target_url})"
 
 # =========================================================================
 # 다중 사용자 순차 대기열 (FIFO Queue) 시스템 - RLock으로 데드락 완전 방지
@@ -304,7 +296,7 @@ def execute_task_subprocess(task_item):
     fresh_cfg = load_config()
 
     task_payload = payload.copy()
-    task_payload["wan2gp_url"] = fresh_cfg.get("wan2gp_url", "http://127.0.0.1:42003")
+    task_payload["wan2gp_url"] = fresh_cfg.get("wan2gp_url", "http://10.41.0.125:42003")
     task_payload["outputs_path"] = get_outputs_dir()
     task_payload["inputs_path"] = get_inputs_dir()
     task_payload["log_path"] = get_log_dir()
@@ -321,6 +313,7 @@ def execute_task_subprocess(task_item):
     task_payload["NAG_tau"] = fresh_cfg.get("NAG_tau")
     task_payload["NAG_alpha"] = fresh_cfg.get("NAG_alpha")
     task_payload["masking_strength"] = fresh_cfg.get("masking_strength", 1.0)
+    task_payload["denoising_strength"] = fresh_cfg.get("denoising_strength", 0.75)
     task_payload["mask_expand_shrink"] = fresh_cfg.get("mask_expand_shrink", 0)
     if not task_payload.get("target_model"):
         task_payload["target_model"] = parse_selected_model(fresh_cfg.get("selected_model", "flux2_klein_4b"))
@@ -565,18 +558,21 @@ class FrontHandler(BaseHTTPRequestHandler):
                 items = []
                 valid_exts = {".png", ".jpg", ".jpeg", ".webp", ".mp4"}
                 try:
-                    for entry in os.scandir(out_dir):
-                        if entry.is_file():
-                            ext = os.path.splitext(entry.name)[1].lower()
-                            if ext in valid_exts:
-                                stat = entry.stat()
-                                items.append({
-                                    "name": entry.name,
-                                    "size": stat.st_size,
-                                    "mtime": stat.st_mtime,
-                                    "is_video": ext == ".mp4",
-                                    "url": f"/api/gallery/image?name={urllib.parse.quote(entry.name)}"
-                                })
+                    if os.path.exists(out_dir):
+                        for root, _, files in os.walk(out_dir):
+                            for fname in files:
+                                ext = os.path.splitext(fname)[1].lower()
+                                if ext in valid_exts:
+                                    full_p = os.path.join(root, fname)
+                                    rel_name = os.path.relpath(full_p, out_dir).replace(os.sep, "/")
+                                    stat = os.stat(full_p)
+                                    items.append({
+                                        "name": rel_name,
+                                        "size": stat.st_size,
+                                        "mtime": stat.st_mtime,
+                                        "is_video": ext == ".mp4",
+                                        "url": f"/api/gallery/image?name={urllib.parse.quote(rel_name)}"
+                                    })
                     items.sort(key=lambda x: x["mtime"], reverse=True)
                 except Exception as e:
                     log_system_event("ERROR", "GALLERY_SCAN_ERROR", f"갤러리 목록 탐색 실패: {e}", exc=e)
@@ -591,9 +587,9 @@ class FrontHandler(BaseHTTPRequestHandler):
                     self.send_error(400, "Image name required")
                     return
                 out_dir = get_outputs_dir()
-                safe_name = os.path.basename(file_name)
-                file_path = os.path.join(out_dir, safe_name)
-                if not os.path.exists(file_path):
+                norm_rel = os.path.normpath(file_name).lstrip("/" + os.sep)
+                file_path = os.path.abspath(os.path.join(out_dir, norm_rel))
+                if not file_path.startswith(out_dir) or not os.path.isfile(file_path):
                     self.send_error(404, "Image not found")
                     return
 
@@ -775,10 +771,36 @@ class FrontHandler(BaseHTTPRequestHandler):
             log_system_event("ERROR", "HTTP_POST_UNHANDLED_EXCEPTION", f"POST 요청 처리 중 예외 발생 ({self.path}): {e}", exc=e)
             self.send_json({"success": False, "error": f"서버 내부 오류: {e}"}, 500)
 
+def get_all_host_ips():
+    ips = set()
+    try:
+        hostname = socket.gethostname()
+        for ip in socket.gethostbyname_ex(hostname)[2]:
+            if not ip.startswith("127."):
+                ips.add(ip)
+    except Exception:
+        pass
+    try:
+        for target in ["10.40.1.1", "10.41.0.1", "8.8.8.8"]:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            try:
+                s.connect((target, 80))
+                ip = s.getsockname()[0]
+                if not ip.startswith("127."):
+                    ips.add(ip)
+            except Exception:
+                pass
+            finally:
+                s.close()
+    except Exception:
+        pass
+    return sorted(list(ips))
+
 def run_server(port=None):
     cur_cfg = load_config()
     if port is None:
         port = cur_cfg.get("server_port", 8080)
+    server_host = cur_cfg.get("server_host", "0.0.0.0")
 
     # 기본 디렉터리 생성 및 점검
     get_inputs_dir()
@@ -790,15 +812,22 @@ def run_server(port=None):
     worker_thread = threading.Thread(target=queue_worker_loop, daemon=True)
     worker_thread.start()
 
-    server_address = ("", port)
+    server_address = (server_host, port)
     httpd = ThreadingHTTPServer(server_address, FrontHandler)
+    httpd.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     is_alive, active_url, status_text = check_or_detect_wan2gp()
+
+    host_ips = get_all_host_ips()
+    ip_lines = "\n".join([f"[*] 외부 접속 주소 (LAN): http://{ip}:{port}" for ip in host_ips])
 
     print("=" * 65)
     print("   [천재교육 CHUNJAE] Wan2GP FLUX.2 Klein 4B 프론트엔드 서버")
     print("   (ThreadingHTTPServer & 격리 프로세스 큐 시스템 가동 중)")
     print("=" * 65)
-    print(f"[*] 웹 서버 주소: http://localhost:{port}")
+    print(f"[*] 바인딩 호스트: {server_host} (any 외부 접속 허용)")
+    print(f"[*] 로컬 접속 주소: http://127.0.0.1:{port}")
+    if ip_lines:
+        print(ip_lines)
     print(f"[*] Wan2GP 백엔드: {'[온라인 정상 연결]' if is_alive else '[오프라인 대기 중]'} ({active_url})")
     print(f"[*] 워커 파이썬: {PYTHON_EXE}")
     print(f"[*] 입력 저장 폴더: {get_inputs_dir()}")

@@ -97,5 +97,16 @@
     "output_image_path": "C:\\pinokio\\api\\wan.git\\app\\outputs\\2026-08-28-13h56m14s_seed724464182_여성은 손을 들고 인사한다.jpg",
     "image_name": "2026-08-28-13h56m14s_seed724464182_여성은 손을 들고 인사한다.jpg",
     "rating": "미평가"
+  },
+  {
+    "task_id": "35430f08",
+    "start_time": "2026-09-04 11:07:21",
+    "elapsed_time": "65.8초",
+    "positive_prompt": "이미지 확장",
+    "negative_prompt": "",
+    "input_image_path": "C:\\Users\\admin\\OneDrive\\바탕 화면\\업로드\\wan2gp_kor\\chunjae_image_studio\\inputs\\input_20260904_110721_35430f08.png",
+    "output_image_path": "C:\\pinokio\\api\\wan.git\\app\\outputs\\2026-09-04-11h08m27s_seed62509864_이미지 확장.jpg",
+    "image_name": "2026-09-04-11h08m27s_seed62509864_이미지 확장.jpg",
+    "rating": "미평가"
   }
 ]
